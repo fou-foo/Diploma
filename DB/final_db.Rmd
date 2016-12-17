@@ -1,0 +1,350 @@
+---
+title: "Grade-keeping DB"
+author: "Kenny y Antonio "
+
+date: "2 de abril 2016"
+output: ioslides_presentation
+css: dos.css
+highlighter : highlight.js
+widescreen: true
+logo: escudobig.jpg
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+#knitr::opts_chunk$set(out.width='900px', dpi=200)
+```
+
+# DB
+
+
+
+## 
+
+El origen de la DB es:
+
+http://www.kitebird.com/mysql-book/
+
+
+<b class = "miNota" > Propietario original: Paul DuBois </b>
+
+ MySQL; Paul DuBois; 2013; Inglés,  Addison-Wesley Professional, 5ta edición.
+
+
+## Grade-keeping proyect. Requerimientos 
+
+*  <p class="miNota">Registrar las calificaciones de un conjunto de alumnos</p>
+
+
+
+* Para cada examen o prueba almacenar la calificación
+
+* La calificación final involucra promedios ponderados <code class="miNota">:D :D </code> 
+de las pruebas y de los examenes
+
+* Registrar las faltas de los alumnos
+
+## Grade-keeping proyect
+
+* La DB cuenta con 4 tablas, con registros de las calificaciones obtenidas por un conjunto de alumnos en una asignatura.
+
+* El modelo entidad-relación de la DB cuenta con una relación muchos-muchos. 
+
+
+
+## Diagrama entidad-relación
+![alt text](fotos/diagrama.png)
+
+
+
+
+
+
+# Implementación
+
+## Renombramos las tablas
+
+<pre>
+    <code class="language-java">
+    RENAME TABLE absence TO ABSENCE;
+    RENAME TABLE grade_event TO GRADE_EVENT;
+    RENAME TABLE score TO SCORE;
+    RENAME TABLE student TO STUDENT;
+    </code>
+</pre>
+
+
+
+## DATOS 
+<pre>
+SELECT * FROM ABSENCE LIMIT 6;          SELECT * FROM GRADE_EVENT LIMIT 6;
++------------+------------+             +------------+----------+----------+
+| student_id | date       |             | date       | category | event_id |
++------------+------------+             +------------+----------+----------+
+|          3 | 2012-09-03 |             | 2012-09-03 | Q        |        1 |
+|          5 | 2012-09-03 |             | 2012-09-06 | Q        |        2 |
+|         10 | 2012-09-06 |             | 2012-09-09 | T        |        3 |
+|         10 | 2012-09-09 |             | 2012-09-16 | Q        |        4 |
+|         17 | 2012-09-07 |             | 2012-09-23 | Q        |        5 |
+|         20 | 2012-09-07 |             | 2012-10-01 | T        |        6 |
++------------+------------+             +------------+----------+----------+
+</pre>
+
+
+
+
+## DATOS
+<pre>
+SELECT * FROM SCORE LIMIT 6;            SELECT * FROM STUDENT LIMIT 6;
++------------+----------+-------+       +--------+-----+------------+
+| student_id | event_id | score |       | name   | sex | student_id |
++------------+----------+-------+       +--------+-----+------------+
+|          1 |        1 |    20 |       | Megan  | F   |          1 |
+|          3 |        1 |    20 |       | Joseph | M   |          2 |
+|          4 |        1 |    18 |       | Kyle   | M   |          3 |
+|          5 |        1 |    13 |       | Katie  | F   |          4 |
+|          6 |        1 |    18 |       | Abby   | F   |          5 |
+|          7 |        1 |    14 |       | Nathan | M   |          6 |
++------------+----------+-------+       +--------+-----+------------+
+
+
+
+
+
+
+
+</pre>
+
+
+
+
+
+## Comentarios al modelo 
+
+* El supuesto de aplicar dos pruebas en un mismo día <code class="miNota"> :( </code>
+<pre>
+<code>
+CREATE TABLE grade_event
+{
+    date        DATE NOT NULL, 
+    category    ENUM(´T´, ´Q´,) NOT NULL,
+    event_id    INT UNSIGNED NOT NULL AUTO_INCREMENT, #en lugar fecha y permitir sólo uno
+    PRIMARY KEY(event_id) 
+}
+</code>
+</pre>
+
+
+
+## Comentarios al modelo 
+
+* Id de los estudiantes son números, permite un ordenamiento más rápido (cuando sea posible definirlo)
+<pre>
+<code>
+CREATE TABLE student
+{
+    name        VARCHAR(20) NOT NULL, 
+    sex         ENUM(´F´, ´M´,) NOT NULL,
+    student_id  INT UNSIGNED NOT NULL AUTO_INCREMENT, 
+    PRIMARY KEY(student_id) 
+}
+</code>
+</pre>
+
+
+## Comentarios al modelo 
+
+* Idealización de los datos al ser el campo $score$ de la tabla SCORE de tipo INT, pero ahorra espacio.
+
+* La llave primaria de la tabla ABSENCE es compuesta, lo que no permitiría que un alumno falte dos veces en el mismo día
+```{r cars, echo = FALSE}
+library(jpeg)
+aplausos<-readJPEG("/home/fou/Desktop/Modernidad/diplomado/Base de datos/proyecto final de base de datos/presentacion/download.jpg")
+plot(0,100,xlab="",ylab="")
+rasterImage(aplausos,-1,60,1,140)
+#plot(datos$Clase, col = "orange")
+#legend(1.5,400,c(paste(round(cuentas_clase[1]/dim(datos)[1],3),"% No",sep=""),paste(round(cuentas_clase[2]/dim(datos)[1],3),"% Sí",sep="")),pch=20,cex=0.8, col="orange")
+```
+
+
+
+## <p class="miNota"> Obtener las calificaciones de los muchachos </p> 
+
+
+## Vistas (la primera)
+<p class="miNota">Las calificaciones de los alumnos en el curso </p>
+<pre>
+<code>
+CREATE VIEW subCal AS 
+SELECT  name, score, category 
+FROM GRADE_EVENT, SCORE,STUDENT 
+WHERE  SCORE.student_id = STUDENT.student_id 
+AND GRADE_EVENT.event_id = SCORE.event_id;
+</code>
+</pre>
+
+## Vistas (las siguientes n)
+<pre>
+<code>
+CREATE VIEW ssubCal AS
+SELECT name,sum(score) score,category 
+FROM subCal  GROUP BY name,category;
+Create view s1 as 
+select name, score 
+from ssubCal where category='T';
+Create view s2 as 
+select name, score 
+from ssubCal where category='Q';
+
+</code>
+</pre>
+
+
+## Vista final 
+<pre>
+<code>
+CREATE VIEW foo AS
+select s1.name,(s1.score/200)*.5+(s2.score/80)*.5 
+from s1 inner join s2 
+where s1.name=s2.name;
+mysql> select * from foo;
++--------+------------------------------------+
+| name   | (s1.score/200)*.5+(s2.score/80)*.5 |
++--------+------------------------------------+
+| Abby   |                            0.87875 |
+| Aubrey |                            0.70500 |
+| Avery  |                            0.59500 |
+| Becca  |                            0.81500 |
+| Ben    |                            0.71250 |
+| Carter |                            0.54375 |
+| Colin  |                            0.76500 |
++--------+------------------------------------+
+</code>
+</pre>
+
+
+## Procedure
+<pre>
+<code>
+delimiter //
+drop procedure if exists Calificaciones;
+create procedure Calificaciones ( in nombre varchar(20))
+begin
+declare examenes int;
+declare cuestionarios int; 
+SELECT  sum( score)  into examenes  FROM GRADE_EVENT, SCORE,STUDENT 
+WHERE  SCORE.student_id = STUDENT.student_id 
+AND GRADE_EVENT.event_id = SCORE.event_id 
+and name=nombre AND category='T';
+SELECT  sum( score)  into cuestionarios FROM GRADE_EVENT, SCORE,STUDENT 
+WHERE  SCORE.student_id = STUDENT.student_id 
+AND GRADE_EVENT.event_id = SCORE.event_id 
+and name=nombre AND category='Q';
+select( (examenes/200)*.5+(cuestionarios/80)*.5);
+end;
+delimiter ;
+</code>
+</pre>
+
+## Outputs
+
+<pre>
+<code>
+mysql> call Calificaciones('Will');
++--------------------------------------------+
+| ( (examenes/200)*.5+(cuestionarios/80)*.5) |
++--------------------------------------------+
+|                                    0.63875 |
++--------------------------------------------+
+mysql> call Calificaciones('Emily');
++--------------------------------------------+
+| ( (examenes/200)*.5+(cuestionarios/80)*.5) |
++--------------------------------------------+
+|                                    0.75500 |
++--------------------------------------------+
+
+
+</code>
+</pre>
+
+## Resultados  y Base de datos con R!!!
+
+```{r, echo = FALSE, message=FALSE,warning=FALSE,fig.align='center'}
+library(RMySQL)
+library(ggplot2)
+conexion <- dbConnect(MySQL(), user = "root", host = "localhost",
+                   password = "Losquier0", db = "sampdb")
+
+result <- dbGetQuery(conexion, "select * from STUDENT;"); 
+
+
+#dbDisconnect(ucsDb)
+
+student <- dbReadTable(conexion, "STUDENT")
+
+## Proporción de mujeres y hombres
+
+tema <- theme(panel.grid = element_blank(),
+              panel.background = element_blank(),
+              axis.title = element_text(size = 15),
+              axis.text = element_text(size = 12))
+
+plt <- ggplot(data = student) + geom_bar(aes(x = sex, 
+                                      fill = sex)) + ylab("Num. de alumnos") + xlab("Sexo") +
+  scale_fill_manual(values = c("#cf5b6f", "#7ac5cd"), 
+                    breaks = c("F", "M"),
+                    label = c("Femenino", "Masculino"),
+                    name  = "Sexo") 
+
+
+plt + tema
+```
+
+
+## Resultados  y Base de datos con R!!!
+
+
+```{r, echo = FALSE, message=FALSE,warning=FALSE,fig.align='center'}
+
+## Proporción de reprobados por tipo de examen
+
+conslt <- "select SCORE.student_id STUDENT, SCORE.score score, event.category category
+from SCORE, GRADE_EVENT as event
+where SCORE.event_id = event.event_id;"
+
+TestAndQuizes <- dbGetQuery(conexion, conslt)
+
+passedTest <- (TestAndQuizes$score[TestAndQuizes$category == "T"] >= 0.6*100)
+passedQuiz <- (TestAndQuizes$score[TestAndQuizes$category == "Q"] >= 0.6*20)
+
+TestAndQuizes$passed <- rep(TRUE, length(passedTest) + length(passedQuiz))
+
+
+
+TestAndQuizes$passed[TestAndQuizes$category == "T"] <- passedTest
+TestAndQuizes$passed[TestAndQuizes$category == "Q"] <- passedQuiz
+
+aprobo <- TestAndQuizes$passed
+TestAndQuizes$passed[aprobo] <- "Pass"
+TestAndQuizes$passed[!aprobo] <- "Not Pass"
+
+plt <- ggplot(TestAndQuizes) + geom_bar(aes(x = factor(category),
+                                            fill = factor(passed))) + scale_fill_manual(values = c("#ed1651", "#27e3de"), breaks = c("Pass", "Not Pass"),label = c("Aprobado", "Reprobado"),    name  = c("Estado")) 
+plt + tema + ylab("Num. de Examenes") + xlab("Tipo de Examen")
+
+```
+
+
+## Resultados  y Base de datos con R!!!
+
+```{r, echo = FALSE, message=FALSE,warning=FALSE,fig.align='center'}
+
+ plt <- ggplot(TestAndQuizes) + geom_histogram(aes(x = score, fill = category))
+plt + tema + scale_fill_manual(values = c("#76323f", "#ffa500"), 
+                               breaks = c("T", "Q"),
+                               label = c("Test", "Quiz"),
+                               name = "Tipo de Examen") + ylab("Frecuencia") + xlab("Score")
+
+```
+
+
